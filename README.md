@@ -182,6 +182,7 @@ U$ inotifywait -t 5 /sys/class/gpio/gpio158/value
 BUT this does **not work**. 
 
 > In Linux, everythin is a file...
+
 but some files are more files than others :)
 
 Since `sysfs` is a special sort of memory file system it is not supported by **inotify(7)**.
@@ -205,13 +206,13 @@ while True:
 ```
 BUT this can also **not work**.
 
-Since we do **poll(2)** is mainly for reading pipes and sockets, `POLLIN` does not quite work
+Since **poll(2)** is mainly for reading pipes and sockets, `POLLIN` does not quite work
 on files since a file will always be ''readable''. Therfore we have to use the configuration described 
 in [gpio-sysfs][3].
 
-To react on chaning `values` the documentation of [gpio-sysfs][3]  
-suggests to use **poll(2)** for the events `POLLPRI | POLLERR` and configure
-the GPIO pin as interrupt-generating via `edge`. 
+To react on chaning `values` the documentation of [gpio-sysfs][3] suggests to 
+use **poll(2)** for the events `POLLPRI | POLLERR` and 
+configure the GPIO pin as interrupt-generating via `edge`. 
 
 > If the pin can be configured as interrupt-generating interrupt
 > and if it has been configured to generate interrupts (see the
