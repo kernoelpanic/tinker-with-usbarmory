@@ -12,6 +12,7 @@ The main modes of operation of USBarmory are:
 * [CDC ethernet over USB](#cdc-ethernet-over-usb)
 * [Mass storage](#mass-storage)
 * [Mass storage and CDC ethernet](#mass-storage-and-cdc-ethernet)
+* [Host](#host)
 
 ### CDC ethernet over USB 
 This mode enabls access to the USBarmory via network e.g. ssh. 
@@ -115,6 +116,9 @@ ci_hdrc_imx
 g_multi use_eem=0 dev_addr=1a:55:89:a2:69:41 host_addr=1a:55:89:a2:69:42 file=/disk.img
 ```
 
+### Host
+**TODO**
+
 ## FTDI serial connection ##
 **TODO**
 
@@ -142,9 +146,14 @@ U$ ntpdate 0.at.pool.ntp.org #to get some current time
 ```
 
 ### GPIO 
+The USBarmory exposes GPIO via sysfs to userspace. Documentation on Linux GPIO
+can be found here:
+* [gpio][4]
+* [gpio-legacy][5]
+* [gpio-sysfs][3]
 
 The standard GPIO example from the homepage works via sysfs.
-```
+```shell
 U$ echo 158 > /sys/class/gpio/export             # 128 (GPIO5[0]) + 30 = GPIO5[30]
 U$ echo out > /sys/class/gpio/gpio158/direction
 U$ echo 1 > /sys/class/gpio/gpio158/value
@@ -152,25 +161,124 @@ U$ echo 0 > /sys/class/gpio/gpio158/value
 U$ echo 158 > /sys/class/gpio/unexport
 ```
 
-To use a pin as input an react up-on changing values, a code sample can be found in
+To read some `value` from a GPIO pin the direction has to be set to `in`, 
+wire your GPIOs properly and observe changes of `value` e.g.
+```shell
+U$ echo 158 > /sys/class/gpio/export
+U$ echo in > /sys/class/gpio/gpio158/direction
+U$ watch cat /sys/class/gpio/value
+U$ echo 158 > /sys/class/gpio/unexport # if your are finished useing
+```
 
+To use a pin as input and react up-on changing values, a little bit more is required
+for smooth operation. Code sample can be found in [gpio](./gpio).
 
+#### React up-on input change
+Now one might be tempted to use **inotify(7)** and its usespace program **inotifywait(1)** 
+to monitor changes/events on the `value` file.
+```shell
+U$ inotifywait -t 5 /sys/class/gpio/gpio158/value
+```
+BUT this does **not work**. 
+
+> In Linux, everythin is a file...
+but some files are more files than others :)
+
+Since `sysfs` is a special sort of memory file system it is not supported by **inotify(7)**.
+> Inotify reports only events that a user-space program triggers through the filesystem API.  As a result, it does not  catch
+> remote  events  that  occur  on  network filesystems.  (Applications must fall back to polling the filesystem to catch such
+> events.)  Furthermore, various pseudo-filesystems such as /proc, /sys, and /dev/pts are not monitorable with inotify.
+
+So we need another approach. How about useing **poll(2)** through python via [select.poll][6].
+```python
+#!/usr/bin/env python
+from select import poll, POLLIN
+filename = "/sys/class/gpio/gpio158/value"
+file = open(filename, "r")
+p = poll()
+p.register(file.fileno(), POLLIN)
+
+while True:
+    events = p.poll(100)
+    for e in events:
+        print e
+```
+BUT this can also **not work**.
+
+Since we do **poll(2)** is mainly for reading pipes and sockets, `POLLIN` does not quite work
+on files since a file will always be ''readable''. Therfore we have to use the configuration described 
+in [gpio-sysfs][3].
+
+To react on chaning `values` the documentation of [gpio-sysfs][3]  
+suggests to use **poll(2)** for the events `POLLPRI | POLLERR` and configure
+the GPIO pin as interrupt-generating via `edge`. 
+
+> If the pin can be configured as interrupt-generating interrupt
+> and if it has been configured to generate interrupts (see the
+> description of "edge"), you can poll(2) on that file and
+> poll(2) will return whenever the interrupt was triggered. If
+> you use poll(2), set the events POLLPRI and POLLERR. [...] After
+> poll(2) returns, either lseek(2) to the beginning of the sysfs
+> file and read the new value or close the file and re-open it
+> to read the value.
+
+So to use **poll(2)** setting an `edge` is required.
+> "edge" ... reads as either "none", "rising", "falling", or
+> 	"both". Write these strings to select the signal edge(s)
+>	that will make poll(2) on the "value" file return.
+
+>	This file exists only if the pin can be configured as an
+>	interrupt generating input pin.
+
+To set up a GPIO for useing **poll(2)** the following settings should be made.
+```shell
+U$ echo 158 > /sys/class/gpio/export
+U$ echo in > /sys/class/gpio/gpio158/direction
+U$ echo "falling" > /sys/class/gpio/gpio158/edge
+```
+
+Now we can use the following python code snippet, a full example can be found in [here](./gpio).
+```python
+#!/usr/bin/env python
+from select import poll, POLLERR, POLLPRI
+fvalue = "/sys/class/gpio/gpio158/value"
+fp = open(fvalue, "r")
+p = poll()
+p.register(fp.fileno(), POLLPRI | POLLERR)
+i=0
+
+while True:
+    events = p.poll(2000)
+    while len(events) > 0:
+        e = events.pop()
+        fp.seek(0) # always start at the beginning of file 
+	# always read() the whole file, otherwise we run in endless loop!
+        print "Event: ",e," value=",fp.read(-1)[0]," len=",len(events)," i=",i
+	i += 1
+```
+
+### Randomness
+**TODO**
+
+```
+U$ cat /proc/sys/kernel/random/entropy_avail
+```
 
 ## References
 
-* USBarmory doku 
-https://github.com/inversepath/usbarmory/wiki/GPIOs
+* USBarmory docu 
+- https://github.com/inversepath/usbarmory/wiki/GPIOs
 
 * USBarmory google groups
-https://groups.google.com/forum/#!topic/usbarmory/1mIQI0h_UEk
+- https://groups.google.com/forum/#!topic/usbarmory/1mIQI0h_UEk
 
 * Kernel GPIO dokumentation
-https://www.kernel.org/doc/Documentation/gpio/gpio.txt
-https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
-http://www.mjmwired.net/kernel/Documentation/gpio.txt
+- https://www.kernel.org/doc/Documentation/gpio/gpio.txt
+- https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt
+- https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
 
-* OpenWRT
-http://wiki.openwrt.org/doc/hardware/port.gpio
+* OpenWRT GPIO
+- http://wiki.openwrt.org/doc/hardware/port.gpio
 
 <!--- 
 internal references 
@@ -178,3 +286,7 @@ internal references
 
 [1]: http://www.inversepath.com/usbarmory.html
 [2]: http://madduck.net/blog/2006.10.20:loop-mounting-partitions-from-a-disk-image/
+[3]: https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
+[4]: https://www.kernel.org/doc/Documentation/gpio/gpio.txt
+[5]: https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt 
+[6]: https://docs.python.org/2.7/library/select.html
