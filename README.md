@@ -259,10 +259,89 @@ while True:
 ```
 
 ### Randomness
-**TODO**
 
+To check if the USBarmory provides solid cryptographically usable randomness we run some tests:
+```
+U$ apt-get install dieharder
+U$ cat /dev/urandom | ./dieharder -a -g 200
+```
+
+Check for available entropy:
 ```
 U$ cat /proc/sys/kernel/random/entropy_avail
+```
+
+## Examples
+
+### Bitcoin offline/colde storage
+
+Just install [vanitygen][7] as a fast Bitcoin address generator for the command line. 
+
+Install missing dependencies:
+```
+# in cas of the following error when installing vanity
+#  pcre.h: No such file or directory
+U$ apt-get install libpcre3-dev
+```
+
+To quickly generate an address on the USBarmory the following command can be used:
+```shell
+U$ ./vanitygen 1btc
+Difficulty: 4553521
+Pattern: 1btc                                                                  
+Address: 1btc8zjDetGAkRRD5JpNdSdpNcxCzymTu
+Privkey: 5JrAdQp23Zkqi4NFwSGoh6kftHochz56ctxuFVemX1vy4KozLvV 
+```
+
+The following address can now be used to send Bitcoins to it. 
+
+**NOTE:** If you lose the Privkey, your Bitcoins are gone!
+
+**NOTE:** This public/private key pair does not hold any coins - so its not worth a try :)
+
+To use the Bitcoin address/the ECDSA public-private key pair with Bitcoin on an online device,
+you can import the private key in an regular `bitoind` client useing the following command:
+```shell
+C$ ./bitcoin-cli importprivkey 5JrAdQp23Zkqi4NFwSGoh6kftHochz56ctxuFVemX1vy4KozLvV usbarmory
+```
+
+
+### Bitcoin wallet
+
+Download and install [mmgen][6] which is a command line wallet. 
+
+
+Install missing dependencies for `mmgen`:
+```
+# in case of following error:
+#  Python.h: No such file or directory or directory
+U$ apt-get install python-dev
+```
+
+#### Install bitcoind manually
+```
+U$ apt-get install libboost-system-dev libboost-filesystem-dev  libboost-program-options-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev autoconf libtool pkg-config
+# just in case something missing: libboost-dev-all and libglib2.0-dev
+U$ cd bitcoin
+U$ ./autogen.sh
+U$ ./configure ./configure --with-gui=no --with-incompatible-bdb --without-miniupnpc --without-qtdbus
+```
+
+Start bitcoind:
+```
+U$ bitcoind -daemon -maxconnections=0 -listen=0
+```
+
+Now you are free to use `mmgen`
+
+#### mmgen
+```
+U$ mmgen-walletgen
+U$ mmgen-addrgen 89ABCDEF-76543210[256,3].mmdat 1-10
+U$ cp '89ABCDEF[1-10].addrs' my.addrs
+ 
+C$ mmgen-addrimport my.addrs
+U$ mmgen-tool listaddresses
 ```
 
 ## References
@@ -281,6 +360,12 @@ U$ cat /proc/sys/kernel/random/entropy_avail
 * OpenWRT GPIO
 - http://wiki.openwrt.org/doc/hardware/port.gpio
 
+* MMGen Bitcoin command line wallet based on bitcoind
+- https://github.com/mmgen/mmgen
+
+* Bitcoin address generator for command line
+- https://github.com/samr7/vanitygen
+
 <!--- 
 internal references 
 -->
@@ -289,5 +374,7 @@ internal references
 [2]: http://madduck.net/blog/2006.10.20:loop-mounting-partitions-from-a-disk-image/
 [3]: https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
 [4]: https://www.kernel.org/doc/Documentation/gpio/gpio.txt
-[5]: https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt 
+[5]: https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt
+[6]: https://github.com/mmgen/mmgen/wiki/Install-MMGen-on-Debian-or-Ubuntu-Linux 
 [6]: https://docs.python.org/2.7/library/select.html
+[7]: https://github.com/samr7/vanitygen
