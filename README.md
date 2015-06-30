@@ -166,7 +166,7 @@ wire your GPIOs properly and observe changes of `value` e.g.
 ```shell
 U$ echo 158 > /sys/class/gpio/export
 U$ echo in > /sys/class/gpio/gpio158/direction
-U$ watch cat /sys/class/gpio/value
+U$ watch cat /sys/class/gpio/gpio158/value
 U$ echo 158 > /sys/class/gpio/unexport # if your are finished useing
 ```
 
