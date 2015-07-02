@@ -260,20 +260,25 @@ while True:
 
 ### Randomness
 
-To check if the USBarmory provides solid cryptographically usable randomness we run some tests:
+To check if the USBarmory provides solid cryptographically usable randomness we ran some tests:
 ```
 U$ apt-get install dieharder
 U$ cat /dev/urandom | ./dieharder -a -g 200
+# this gona take a lot of time. 
 ```
+The results can be found in the [./tests](./tests) folder in this repository.
+The Test containing `load` in their name have been run while the USBarmory
+was under haevy load e.g. compiling stuff. 
 
-Check for available entropy:
+
+For quickly check the currently available entropy:
 ```
 U$ cat /proc/sys/kernel/random/entropy_avail
 ```
 
 ## Examples
 
-### Bitcoin offline/colde storage
+### Bitcoin offline/cold storage
 
 Just install [vanitygen][7] as a fast Bitcoin address generator for the command line. 
 
@@ -320,16 +325,30 @@ U$ apt-get install python-dev
 
 #### Install bitcoind manually
 ```
-U$ apt-get install libboost-system-dev libboost-filesystem-dev  libboost-program-options-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev autoconf libtool pkg-config
+U$ apt-get install libboost-system-dev libboost-filesystem-dev  libboost-program-options-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev autoconf libtool pkg-config libdb++-dev libdb-dev
 # just in case something missing: libboost-dev-all and libglib2.0-dev
+
+# get latest version of bitcoin
+U$ git clone https://github.com/bitcoin/bitcoin.git
 U$ cd bitcoin
-U$ ./autogen.sh
-U$ ./configure ./configure --with-gui=no --with-incompatible-bdb --without-miniupnpc --without-qtdbus
+U$ git fetch
+# checkout the latest stable branch - we want to be sure :)
+U$ git checkout remotes/origin/0.10
+
+# build it 
+U$ ./autogen.sh 
+# take care that autogen.sh does not report erros regardin
+# your locale and LANG settings. If so run: dpkg-reconfigure locales
+# Then run configure and deactivate GUI and UPNP. 
+# NOTE: If you use the 'with-incompatible-bdb' flag, your 'wallet.dat' will not be 
+# compatible with the binary of bitcoind shiped at bitcoin.org.  
+U$ ./configure --without-gui --with-incompatible-bdb --without-miniupnpc 
+U$ make
 ```
 
 Start bitcoind:
 ```
-U$ bitcoind -daemon -maxconnections=0 -listen=0
+U$ ./bitcoind -daemon -maxconnections=0 -listen=0
 ```
 
 Now you are free to use `mmgen`
@@ -347,24 +366,24 @@ U$ mmgen-tool listaddresses
 ## References
 
 * USBarmory docu 
-- https://github.com/inversepath/usbarmory/wiki/GPIOs
+https://github.com/inversepath/usbarmory/wiki/GPIOs
 
 * USBarmory google groups
-- https://groups.google.com/forum/#!topic/usbarmory/1mIQI0h_UEk
+https://groups.google.com/forum/#!topic/usbarmory/1mIQI0h_UEk
 
 * Kernel GPIO dokumentation
-- https://www.kernel.org/doc/Documentation/gpio/gpio.txt
-- https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt
-- https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
+https://www.kernel.org/doc/Documentation/gpio/gpio.txt
+https://www.kernel.org/doc/Documentation/gpio/gpio-legacy.txt
+https://www.kernel.org/doc/Documentation/gpio/sysfs.txt
 
 * OpenWRT GPIO
-- http://wiki.openwrt.org/doc/hardware/port.gpio
+http://wiki.openwrt.org/doc/hardware/port.gpio
 
 * MMGen Bitcoin command line wallet based on bitcoind
-- https://github.com/mmgen/mmgen
+https://github.com/mmgen/mmgen
 
 * Bitcoin address generator for command line
-- https://github.com/samr7/vanitygen
+https://github.com/samr7/vanitygen
 
 <!--- 
 internal references 
