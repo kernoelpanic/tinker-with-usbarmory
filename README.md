@@ -357,10 +357,36 @@ Now you are free to use `mmgen`
 ```
 U$ mmgen-walletgen
 U$ mmgen-addrgen 89ABCDEF-76543210[256,3].mmdat 1-10
-U$ cp '89ABCDEF[1-10].addrs' my.addrs
+# then copy the '.addrs' file to your "online" computer
+# e.g. copy it to a mounted disk.img file from the USBarmory
+U$ cp '89ABCDEF[1-10].addrs' /mnt/disk/
  
-C$ mmgen-addrimport my.addrs
-U$ mmgen-tool listaddresses
+C$ python mmgen/mmgen-addrimport '89ABCDEF[1-10].addrs'
+C$ python mmgen/mmgen-tool listaddresses
+C$ python mmgen/mmgen-tool listaddresses showempty=1
+# Here you see the now passively tracked Bitcoin addresses
+# I then transacted some Bitcoins to one of the addresses.
+# Of course there has to be a 'bitcoind' running in the background
+# of your computer. If the Bitcoins are transacted you see them:
+C$ python mmgen/mmgen-tool listaddresses
+ADDRESS      COMMENT   BALANCE
+89ABCDEF:1     0.00815
+# select an empty/unused  address as the exchange address 
+C$ cat '89ABCDEF[1-10].addrs'
+...
+# create a new transaction 
+C$ python mmgen/mmgen-txcreate 1Cy1EXq3yjoWb1ufQgXL2sVoPVgNUwSF36,0.001 17miF8p89PreKQ1AgjUXta9JfYGA4NT5kF
+# copty the generated tx_*.raw file to your USBarmory
+# e.g. copy it to a the mounted USBarmory partition
+C$ cp tx_1234567[0.001].raw /mnt/disk/
+
+# sign the tx
+U$ python mmgen/mmgen-txsign -q -d /mnt/disk/ /mnt/disk/tx_*.raw /opt/xchange/89ABCDEF-76543210\[256\,3\].mmdat
+# copy the '.sig' file over to your "online" computer 
+
+# send the tx 
+C$ python mmgen/mmgen-txsend tx_1234567\[0.001\].sig
+# The transaction is now sent to the Bitcoin network and  
 ```
 
 ## References
